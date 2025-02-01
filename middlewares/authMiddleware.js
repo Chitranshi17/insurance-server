@@ -73,35 +73,66 @@
 
 
 
+// const jwt = require("jsonwebtoken");
+
+// const authMiddleware = (requiredRole) => {
+//   return (req, res, next) => {
+//     const token = req.header("Authorization")?.replace("Bearer ", "");
+
+//     if (!token) {
+//       return res
+//         .status(401)
+//         .json({ message: "No token, authorization denied" });
+//     }
+
+//     try {
+//       const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+//       if (requiredRole && decoded.role !== requiredRole) {
+//         return res.status(403).json({
+//           message:
+//             "Unauthorized. Only Government officials can review policies.",
+//         });
+//       }
+
+//       req.user = decoded;
+//       next();
+//     } catch (err) {
+//       console.error("JWT Verification Error:", err);
+//       return res.status(401).json({ message: "Token is not valid" });
+//     }
+//   };
+// };
+
+// module.exports = authMiddleware;
+
+
 const jwt = require("jsonwebtoken");
 
-const authMiddleware = (requiredRole) => {
-  return (req, res, next) => {
-    const token = req.header("Authorization")?.replace("Bearer ", "");
-
+const authMiddleware = (roles) => (req, res, next) => {
+  try {
+    const token = req.header("Authorization")?.split(" ")[1];
     if (!token) {
       return res
         .status(401)
-        .json({ message: "No token, authorization denied" });
+        .json({ message: "Unauthorized. No token provided." });
     }
 
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
 
-      if (requiredRole && decoded.role !== requiredRole) {
-        return res.status(403).json({
-          message:
-            "Unauthorized. Only Government officials can review policies.",
-        });
-      }
-
-      req.user = decoded;
-      next();
-    } catch (err) {
-      console.error("JWT Verification Error:", err);
-      return res.status(401).json({ message: "Token is not valid" });
+    // If roles is provided, check if the user role matches any of the allowed roles
+    if (roles && !roles.includes(decoded.role)) {
+      return res.status(403).json({
+        message: `Unauthorized. Only ${roles.join(" or ")} can access this.`,
+      });
     }
-  };
+
+    next();
+  } catch (err) {
+    return res.status(401).json({ message: "Invalid or expired token." });
+  }
 };
 
 module.exports = authMiddleware;
+
