@@ -4,7 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const PDFDocument = require("pdfkit");
 const compareImages = require("../services/imageComparisonService");
-
+const customerModel = require("../models/customerModel");
 
 // Predefined insurance amounts based on policy type
 const insuranceAmounts = {
@@ -14,8 +14,91 @@ const insuranceAmounts = {
   other: 400000,
 };
 
+// all customer policy
 
+// const getCustomerPolicies = async (req, res) => {
+//   try {
+//     // Get the customer ID from the decoded token (from authMiddleware)
+//     const customerId = req.user._id; // Ensure this is coming from the token
 
+//     // Fetch customer details
+//     const customer = await customerModel.findById(customerId);
+
+//     if (!customer) {
+//       return res.status(404).json({ message: "Customer not found" });
+//     }
+
+//     // Fetch policies for this customer
+//     const policies = await PolicyModel.find({ customerId });
+
+//     if (policies.length === 0) {
+//       return res
+//         .status(404)
+//         .json({ message: "No policies found for this customer" });
+//     }
+
+//     // Return both customer details and their policies
+//     return res.status(200).json({
+//       message: "Policies fetched successfully",
+//       customer: {
+//         name: customer.name,
+//         email: customer.email,
+//         phoneNumber: customer.phoneNumber,
+//         address: customer.address,
+//         city: customer.city,
+//       },
+//       policies: policies,
+//     });
+//   } catch (err) {
+//     console.error("Error in getCustomerPolicies:", err);
+//     return res
+//       .status(500)
+//       .json({ message: "Server error, please try again later." });
+//   }
+// };
+
+const getCustomerPolicies = async (req, res) => {
+  try {
+    // Extract the customer ID from the decoded JWT token (from authMiddleware)
+    const customerId = req.user.id; // This comes from the JWT token
+
+    // Fetch customer details (you can remove this part if you just need policies)
+    const customer = await customerModel.findById(customerId);
+
+    if (!customer) {
+      return res.status(404).json({ message: "Customer not found" });
+    }
+
+    // Fetch policies created by this customer (using customerId)
+    const policies = await PolicyModel.find({ customerId });
+
+    if (policies.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No policies found for this customer" });
+    }
+
+    // Return customer details and policies
+    return res.status(200).json({
+      message: "Policies fetched successfully",
+      customer: {
+        name: customer.name,
+        email: customer.email,
+        // phoneNumber: customer.phoneNumber,
+        // address: customer.address,
+        // city: customer.city,
+      },
+      policies: policies,
+    });
+  } catch (err) {
+    console.error("Error in getCustomerPolicies:", err);
+    return res
+      .status(500)
+      .json({ message: "Server error, please try again later." });
+  }
+};
+
+// all government policy list
 const getAllPolicies = async (req, res) => {
   try {
     // Government can access all policies
@@ -45,16 +128,20 @@ const getAllPolicies = async (req, res) => {
   }
 };
 
-
-
-
 const createPolicy = async (req, res) => {
   try {
-    const { phoneNumber, type, address, city } = req.body;
+    const { phoneNumber, type, address, city, customerId } = req.body;
     const beforeDamageImage = req.file ? req.file.path : null; // ✅ Store initial image
 
     // Validate required fields
-    if (!phoneNumber || !type || !beforeDamageImage || !address || !city) {
+    if (
+      !phoneNumber ||
+      !type ||
+      !beforeDamageImage ||
+      !address ||
+      !city ||
+      !customerId
+    ) {
       return res
         .status(400)
         .json({ message: "Please provide all required fields" });
@@ -71,6 +158,7 @@ const createPolicy = async (req, res) => {
     }
 
     const newPolicy = new PolicyModel({
+      customerId,
       phoneNumber,
       type: normalizedType, // ✅ Store type in lowercase for consistency
       address,
@@ -94,7 +182,6 @@ const createPolicy = async (req, res) => {
       .json({ message: "Server error, please try again later" });
   }
 };
-
 
 const approveRejectPolicy = async (req, res) => {
   try {
@@ -349,6 +436,7 @@ const approveRejectClaimByGovernment = async (req, res) => {
         beforeDamageImage: originalImagePath,
         damageImage: damageImagePath,
         damagePercentage: differencePercentage,
+        policyAmount: policy.insuranceAmount,
         assessment:
           policy.surveyorReport?.assessment || "No assessment provided",
         surveyorComments:
@@ -388,4 +476,5 @@ module.exports = {
   claimPolicy,
   approveRejectClaimByGovernment,
   reviewClaimBySurveyor,
+  getCustomerPolicies,
 };

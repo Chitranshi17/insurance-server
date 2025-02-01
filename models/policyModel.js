@@ -257,6 +257,11 @@
 const mongoose = require("mongoose");
 
 const policySchema = new mongoose.Schema({
+  customerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Customer",
+    required: true,
+  }, 
   phoneNumber: { type: String, required: true },
   type: { type: String, required: true },
   beforeDamageImage: { type: String, required: true }, // Original image for before damage
