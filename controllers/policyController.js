@@ -5,28 +5,84 @@ const path = require("path");
 const PDFDocument = require("pdfkit");
 const compareImages = require("../services/imageComparisonService");
 
+
+// Predefined insurance amounts based on policy type
+const insuranceAmounts = {
+  home: 500000,
+  car: 300000,
+  health: 200000,
+  other: 400000,
+};
+
+
+
+const getAllPolicies = async (req, res) => {
+  try {
+    // Government can access all policies
+    if (req.user.role === "government") {
+      const policies = await PolicyModel.find();
+      return res.status(200).json({
+        message: "Policies fetched successfully",
+        policies,
+      });
+    }
+
+    // Surveyor or Customer can view their specific policies (if needed)
+    if (req.user.role === "survey" || req.user.role === "customer") {
+      const policies = await PolicyModel.find({ userId: req.user.id });
+      return res.status(200).json({
+        message: "Policies fetched successfully",
+        policies,
+      });
+    }
+
+    return res.status(403).json({ message: "Access denied" });
+  } catch (err) {
+    console.error("Error in getAllPolicies:", err);
+    return res
+      .status(500)
+      .json({ message: "Server error, please try again later." });
+  }
+};
+
+
+
+
 const createPolicy = async (req, res) => {
   try {
     const { phoneNumber, type, address, city } = req.body;
     const beforeDamageImage = req.file ? req.file.path : null; // ✅ Store initial image
 
+    // Validate required fields
     if (!phoneNumber || !type || !beforeDamageImage || !address || !city) {
       return res
         .status(400)
         .json({ message: "Please provide all required fields" });
     }
 
+    // Convert type to lowercase to prevent case sensitivity issues
+    const normalizedType = type.toLowerCase();
+
+    // Validate policy type
+    if (!insuranceAmounts[normalizedType]) {
+      return res.status(400).json({
+        message: "Invalid policy type. Allowed types: home, car, health",
+      });
+    }
+
     const newPolicy = new PolicyModel({
       phoneNumber,
-      type,
+      type: normalizedType, // ✅ Store type in lowercase for consistency
       address,
       city,
       beforeDamageImage, // ✅ Store original image
       policyId: new mongoose.Types.ObjectId().toHexString(),
       policyStatus: "pending",
+      insuranceAmount: insuranceAmounts[normalizedType], // ✅ Assign predefined amount
     });
 
     await newPolicy.save();
+
     return res.status(201).json({
       message: "Policy created successfully",
       policy: newPolicy,
@@ -39,7 +95,7 @@ const createPolicy = async (req, res) => {
   }
 };
 
-// ✅ Approve/Reject Policy by Government
+
 const approveRejectPolicy = async (req, res) => {
   try {
     const { policyId } = req.params;
@@ -69,7 +125,6 @@ const approveRejectPolicy = async (req, res) => {
   }
 };
 
-// ✅ Get Policy Certificate
 const getCertificate = async (req, res) => {
   try {
     const { policyId } = req.params;
@@ -248,9 +303,6 @@ const reviewClaimBySurveyor = async (req, res) => {
   }
 };
 
-// ✅ Government Approves or Rejects the Claim
-
-
 const approveRejectClaimByGovernment = async (req, res) => {
   try {
     const { policyId } = req.params;
@@ -260,6 +312,7 @@ const approveRejectClaimByGovernment = async (req, res) => {
       return res.status(400).json({ message: "Invalid request parameters." });
     }
 
+    // Fetch the policy
     const policy = await PolicyModel.findOne({ policyId });
     if (!policy) return res.status(404).json({ message: "Policy not found." });
 
@@ -269,22 +322,65 @@ const approveRejectClaimByGovernment = async (req, res) => {
         .json({ message: "Claim must be reviewed by a surveyor first." });
     }
 
-    // Approve or reject claim
-    policy.claimDetails.status = action === "approve" ? "approved" : "rejected";
-    policy.policyStatus = action === "approve" ? "fulfilled" : "rejected";
+    // ✅ Fetch before and after damage images
+    const originalImagePath = policy.beforeDamageImage;
+    const damageImagePath = policy.claimDetails.damageImage;
 
-    await policy.save();
+    if (!originalImagePath || !damageImagePath) {
+      return res
+        .status(400)
+        .json({ message: "Both images are required for comparison." });
+    }
 
-    return res
-      .status(200)
-      .json({ message: `Claim ${action}d successfully.`, policy });
+    try {
+      // ✅ Compare images using Python API
+      const { differencePercentage } = await compareImages(
+        originalImagePath,
+        damageImagePath
+      );
+
+      // ✅ Prepare final government response
+      const responseData = {
+        policyId: policy.policyId,
+        phoneNumber: policy.phoneNumber,
+        type: policy.type,
+        address: policy.address,
+        city: policy.city,
+        beforeDamageImage: originalImagePath,
+        damageImage: damageImagePath,
+        damagePercentage: differencePercentage,
+        assessment:
+          policy.surveyorReport?.assessment || "No assessment provided",
+        surveyorComments:
+          policy.surveyorReport?.surveyorComments || "No comments",
+        policyStatus: action === "approve" ? "fulfilled" : "rejected",
+      };
+
+      // ✅ Approve or reject claim
+      policy.claimDetails.status =
+        action === "approve" ? "approved" : "rejected";
+      policy.policyStatus = responseData.policyStatus;
+
+      await policy.save();
+
+      return res.status(200).json({
+        message: `Claim ${action}d successfully.`,
+        data: responseData,
+      });
+    } catch (error) {
+      console.error("Error comparing images:", error.message);
+      return res.status(500).json({ message: "Error comparing images." });
+    }
   } catch (err) {
-    console.error("Error:", err);
-    return res.status(500).json({ message: "Server error." });
+    console.error("Error in approveRejectClaimByGovernment:", err.message);
+    return res
+      .status(500)
+      .json({ message: "Server error, please try again later." });
   }
 };
 
 module.exports = {
+  getAllPolicies,
   createPolicy,
   approveRejectPolicy,
   claimPolicy,

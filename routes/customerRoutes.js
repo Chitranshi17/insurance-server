@@ -8,6 +8,7 @@ const {
   claimPolicy,
   reviewClaimBySurveyor,
   approveRejectClaimByGovernment,
+  getAllPolicies,
 } = require("../controllers/policyController");
 const upload = require("../middlewares/multerMiddleware");
 
@@ -63,5 +64,7 @@ router.put(
   authMiddleware("government"),
   approveRejectClaimByGovernment
 );
+
+router.get("/policies", authMiddleware("government"), getAllPolicies); // Role-based access
 
 module.exports = router;

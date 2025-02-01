@@ -262,6 +262,7 @@ const policySchema = new mongoose.Schema({
   beforeDamageImage: { type: String, required: true }, // Original image for before damage
   address: { type: String, required: true },
   city: { type: String, required: true },
+  insuranceAmount: { type: Number, required: true }, // New field
   policyId: {
     type: String,
     required: true,
