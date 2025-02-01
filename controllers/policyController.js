@@ -59,44 +59,26 @@ const insuranceAmounts = {
 
 const getCustomerPolicies = async (req, res) => {
   try {
-    // Extract the customer ID from the decoded JWT token (from authMiddleware)
-    const customerId = req.user.id; // This comes from the JWT token
+    const customerPolicies = await PolicyModel.find({
+      customerId: req.user.id,
+    });
 
-    // Fetch customer details (you can remove this part if you just need policies)
-    const customer = await customerModel.findById(customerId);
-
-    if (!customer) {
-      return res.status(404).json({ message: "Customer not found" });
-    }
-
-    // Fetch policies created by this customer (using customerId)
-    const policies = await PolicyModel.find({ customerId });
-
-    if (policies.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "No policies found for this customer" });
-    }
-
-    // Return customer details and policies
+    // Return policies with their creation dates
     return res.status(200).json({
       message: "Policies fetched successfully",
-      customer: {
-        name: customer.name,
-        email: customer.email,
-        // phoneNumber: customer.phoneNumber,
-        // address: customer.address,
-        // city: customer.city,
-      },
-      policies: policies,
+      policies: customerPolicies.map((policy) => ({
+        ...policy.toObject(),
+        createdAt: policy.createdAt, // Include the createdAt field
+      })),
     });
   } catch (err) {
-    console.error("Error in getCustomerPolicies:", err);
+    console.error("Error in getCustomerPolicies:", err.message);
     return res
       .status(500)
-      .json({ message: "Server error, please try again later." });
+      .json({ message: "Server error, please try again later" });
   }
 };
+
 
 // all government policy list
 const getAllPolicies = async (req, res) => {
@@ -173,7 +155,10 @@ const createPolicy = async (req, res) => {
 
     return res.status(201).json({
       message: "Policy created successfully",
-      policy: newPolicy,
+      policy: {
+        ...newPolicy.toObject(),
+        createdAt: newPolicy.createdAt, // Include the createdAt field
+      },
     });
   } catch (err) {
     console.error("Error in createPolicy:", err.message);
@@ -182,6 +167,7 @@ const createPolicy = async (req, res) => {
       .json({ message: "Server error, please try again later" });
   }
 };
+
 
 const approveRejectPolicy = async (req, res) => {
   try {
