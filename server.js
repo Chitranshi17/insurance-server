@@ -33,6 +33,7 @@ app.use(cookieParser());
 app.use("/api/customers", customerRoutes);
 app.use("/api/surveyors", surveyorRoutes);
 app.use("/api/government", governmentRoutes);
+
 // Start the server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

@@ -38,7 +38,6 @@
 
 // // module.exports = mongoose.model("Policy", policySchema);
 
-
 // const mongoose = require("mongoose");
 
 // const policySchema = new mongoose.Schema(
@@ -78,8 +77,6 @@
 // );
 
 // module.exports = mongoose.model("Policy", policySchema);
-
-
 
 // const mongoose = require("mongoose");
 
@@ -121,10 +118,6 @@
 // );
 
 // module.exports = mongoose.model("Policy", policySchema);
-
-
-
-
 
 // const mongoose = require("mongoose");
 
@@ -160,8 +153,6 @@
 // );
 
 // module.exports = mongoose.model("Policy", policySchema);
-
-
 
 // const mongoose = require("mongoose");
 
@@ -203,8 +194,6 @@
 // });
 
 // module.exports = mongoose.model("Policy", policySchema);
-
-
 
 // const mongoose = require("mongoose");
 
@@ -269,6 +258,7 @@ const policySchema = new mongoose.Schema(
     address: { type: String, required: true },
     city: { type: String, required: true },
     insuranceAmount: { type: Number, required: true }, // New field
+    payoutAmount: { type: Number, default: 0 }, // Add this field
     policyId: {
       type: String,
       required: true,
@@ -289,6 +279,12 @@ const policySchema = new mongoose.Schema(
       default: "pending",
     },
     claimDetails: {
+      claimId: {
+        type: String,
+        required: false,
+        unique: true,
+        default: () => new mongoose.Types.ObjectId().toString(),
+      },
       damageDescription: { type: String },
       damageImage: { type: String },
       status: {
