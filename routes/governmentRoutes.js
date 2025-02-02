@@ -28,7 +28,7 @@ router.put(
 
 // 🟢 Government Approves/Rejects Claim (Only "government" Role Allowed)
 router.put(
-  "/government/approve-reject/:claimId",
+  "/approve-reject/:claimId",
   authMiddleware(["government"]),
   approveRejectClaimByGovernment
 );
