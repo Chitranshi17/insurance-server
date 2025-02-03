@@ -493,6 +493,24 @@ const approveRejectClaimByGovernment = async (req, res) => {
   }
 };
 
+const getAllClaimPolicy = async (req, res) => {
+  try {
+    // Fetch policies that contain a claimId (i.e., where a claim has been filed)
+    const claimedPolicies = await PolicyModel.find({
+      "claimDetails.claimId": { $exists: true },
+    });
+
+    if (!claimedPolicies || claimedPolicies.length === 0) {
+      return res.status(404).json({ message: "No claimed policies found." });
+    }
+
+    return res.status(200).json(claimedPolicies);
+  } catch (error) {
+    console.error("Error fetching claimed policies:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
 module.exports = {
   getAllPolicies,
   createPolicy,
@@ -503,4 +521,5 @@ module.exports = {
   approveRejectClaimByGovernment,
   reviewClaimBySurveyor,
   getCustomerPolicies,
+  getAllClaimPolicy,
 };

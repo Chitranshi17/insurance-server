@@ -1,7 +1,10 @@
 const express = require("express");
 const { registerUser, loginUser } = require("../controllers/authController");
 const authMiddleware = require("../middlewares/authMiddleware");
-const { reviewClaimBySurveyor } = require("../controllers/policyController");
+const {
+  reviewClaimBySurveyor,
+  getAllClaimPolicy,
+} = require("../controllers/policyController");
 const router = express.Router();
 
 router.post("/register", (req, res) => registerUser(req, res, "surveyor"));
@@ -13,5 +16,7 @@ router.put(
   authMiddleware(["surveyor", "government"]),
   reviewClaimBySurveyor
 );
+
+router.get("/claim-policies", authMiddleware("surveyor"), getAllClaimPolicy);
 
 module.exports = router;
