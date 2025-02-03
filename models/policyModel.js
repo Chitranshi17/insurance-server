@@ -9,11 +9,11 @@ const policySchema = new mongoose.Schema(
     },
     phoneNumber: { type: String, required: true },
     type: { type: String, required: true },
-    beforeDamageImage: { type: String, required: true }, // Original image for before damage
+    beforeDamageImage: { type: String, required: true },
     address: { type: String, required: true },
     city: { type: String, required: true },
-    insuranceAmount: { type: Number, required: true }, // New field
-    payoutAmount: { type: Number, default: 0 }, // Add this field
+    insuranceAmount: { type: Number, required: true },
+    payoutAmount: { type: Number, default: 0 },
     policyId: {
       type: String,
       required: true,
@@ -30,7 +30,7 @@ const policySchema = new mongoose.Schema(
         "rejected",
         "under review",
         "waiting for government",
-      ], // Added 'waiting for government'
+      ],
       default: "pending",
     },
     claimDetails: {
@@ -44,7 +44,7 @@ const policySchema = new mongoose.Schema(
       damageImage: { type: String },
       status: {
         type: String,
-        enum: ["pending", "under review", "approved", "rejected"], // Added 'approved' and 'rejected'
+        enum: ["pending", "under review", "approved", "rejected"],
         default: "pending",
       },
     },
@@ -56,10 +56,11 @@ const policySchema = new mongoose.Schema(
         enum: ["pending", "approved", "rejected"],
         default: "pending",
       },
+      damagePercentage: { type: Number },
     },
   },
   {
-    timestamps: true, 
+    timestamps: true,
   }
 );
 

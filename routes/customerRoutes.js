@@ -15,14 +15,11 @@ const upload = require("../middlewares/multerMiddleware");
 
 const router = express.Router();
 
-// Customer routes
 router.post("/register", (req, res) => registerUser(req, res, "customer"));
 router.post("/login", (req, res) => loginUser(req, res, "customer"));
-router.get("/protected", authMiddleware("customer"), (req, res) => {
-  res.status(200).json({ message: "Customer protected route accessed" });
-});
 
-// ✅ Create Policy (Customer)
+
+// Create Policy (Customer)
 router.post(
   "/create",
   authMiddleware("customer"),
@@ -30,21 +27,21 @@ router.post(
   createPolicy
 );
 
-// ✅ Approve/Reject Policy (Government)
+// Approve/Reject Policy (Government)
 router.put(
   "/approve-reject/:policyId",
   authMiddleware("government"),
   approveRejectPolicy
 );
 
-// ✅ Get Policy Certificate (Customer)
+// Get Policy Certificate (Customer)
 router.get(
   "/certificate/:policyId",
   authMiddleware("customer"),
   getCertificate
 );
 
-// ✅ Customer requests a claim (Upload damage image)
+// Customer requests a claim (Upload damage image)
 router.post(
   "/claim/:policyId",
   authMiddleware("customer"),
@@ -52,14 +49,14 @@ router.post(
   claimPolicy
 );
 
-// ✅ Surveyor reviews the claim
+// Surveyor reviews the claim
 router.put(
   "/claim/review/:policyId",
   authMiddleware(["surveyor", "government"]),
   reviewClaimBySurveyor
 );
 
-// ✅ Government approves/rejects the claim
+// Government approves/rejects the claim
 router.put(
   "/claim/approve-reject/:policyId",
   authMiddleware("government"),

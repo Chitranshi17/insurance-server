@@ -5,20 +5,16 @@ const {
   getAllPolicies,
   approveRejectPolicy,
   approveRejectClaimByGovernment,
-  // approveClaim,
 } = require("../controllers/policyController");
 const router = express.Router();
 
 router.post("/register", (req, res) => registerUser(req, res, "government"));
 router.post("/login", (req, res) => loginUser(req, res, "government"));
-router.get("/protected", authMiddleware("government"), (req, res) => {
-  res.status(200).json({ message: "Government protected route accessed" });
-});
 
-router.get("/policies", authMiddleware("government"), getAllPolicies); // Role-based access
-// router.put("/approve-claim/:claimId", authMiddleware("surveyor"), approveClaim);
+// Get All Policy (Government)
+router.get("/policies", authMiddleware("government"), getAllPolicies);
 
-// ✅ Approve/Reject Policy (Government)
+// Approve/Reject Policy (Government)
 // 2 - access --> update policy create state --> Go for claim --> Customer
 router.put(
   "/approve-reject/:policyId",
@@ -26,9 +22,9 @@ router.put(
   approveRejectPolicy
 );
 
-// 🟢 Government Approves/Rejects Claim (Only "government" Role Allowed)
+// Government Approves/Rejects Claim (Only "government" Role Allowed)
 router.put(
-  "/approve-reject/:claimId",
+  "/claim/approve-reject/:claimId",
   authMiddleware(["government"]),
   approveRejectClaimByGovernment
 );
