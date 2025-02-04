@@ -63,7 +63,8 @@ const getAllPolicies = async (req, res) => {
 const createPolicy = async (req, res) => {
   try {
     const { phoneNumber, type, address, city, customerId } = req.body;
-    const beforeDamageImage = req.file ? req.file.path : null;
+    // const beforeDamageImage = req.file ? req.file.path : null;
+    const beforeDamageImage = req.file ? `uploads/${req.file.filename}` : null;
 
     if (
       !phoneNumber ||
@@ -173,7 +174,8 @@ const claimPolicy = async (req, res) => {
   try {
     const { policyId } = req.params;
     const { damageDescription } = req.body;
-    const damageImage = req.file ? req.file.path : null;
+    // const damageImage = req.file ? req.file.path : null;
+    const damageImage = req.file ? `uploads/${req.file.filename}` : null; 
 
     if (!damageDescription || !damageImage) {
       return res
@@ -408,6 +410,23 @@ const reviewClaimBySurveyor = async (req, res) => {
     return res.status(500).json({ message: "Server error." });
   }
 };
+const getAllClaimPolicy = async (req, res) => {
+  try {
+    // Fetch policies that contain a claimId (i.e., where a claim has been filed)
+    const claimedPolicies = await PolicyModel.find({
+      "claimDetails.claimId": { $exists: true },
+    });
+
+    if (!claimedPolicies || claimedPolicies.length === 0) {
+      return res.status(404).json({ message: "No claimed policies found." });
+    }
+
+    return res.status(200).json(claimedPolicies);
+  } catch (error) {
+    console.error("Error fetching claimed policies:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
 const approveRejectClaimByGovernment = async (req, res) => {
   try {
     const { claimId } = req.params;
@@ -490,24 +509,6 @@ const approveRejectClaimByGovernment = async (req, res) => {
     return res
       .status(500)
       .json({ message: "Server error, please try again later." });
-  }
-};
-
-const getAllClaimPolicy = async (req, res) => {
-  try {
-    // Fetch policies that contain a claimId (i.e., where a claim has been filed)
-    const claimedPolicies = await PolicyModel.find({
-      "claimDetails.claimId": { $exists: true },
-    });
-
-    if (!claimedPolicies || claimedPolicies.length === 0) {
-      return res.status(404).json({ message: "No claimed policies found." });
-    }
-
-    return res.status(200).json(claimedPolicies);
-  } catch (error) {
-    console.error("Error fetching claimed policies:", error);
-    res.status(500).json({ error: "Internal Server Error" });
   }
 };
 

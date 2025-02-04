@@ -3,15 +3,17 @@ const connectDB = require("./config/db_config");
 const customerRoutes = require("./routes/customerRoutes");
 const surveyorRoutes = require("./routes/surveyorRoutes");
 const governmentRoutes = require("./routes/governmentRoutes");
-
 const cookieParser = require("cookie-parser");
 require("dotenv").config();
-
 const app = express();
+const path = require("path");
 
 //cors
 const cors = require("cors");
 app.use(cors());
+
+// Serve static files from the uploads directory
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // DB connect
 connectDB();
