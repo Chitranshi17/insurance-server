@@ -15,6 +15,9 @@ app.use(cors());
 // Serve static files from the uploads directory
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
+// Serve the certificates folder
+app.use("/certificates", express.static(path.join(__dirname, "certificates")));
+
 // DB connect
 connectDB();
 

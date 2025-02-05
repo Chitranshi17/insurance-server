@@ -10,6 +10,7 @@ const {
   approveRejectClaimByGovernment,
   getAllPolicies,
   getCustomerPolicies,
+  getCustomerNotifications,
 } = require("../controllers/policyController");
 const upload = require("../middlewares/multerMiddleware");
 
@@ -17,7 +18,6 @@ const router = express.Router();
 
 router.post("/register", (req, res) => registerUser(req, res, "customer"));
 router.post("/login", (req, res) => loginUser(req, res, "customer"));
-
 
 // Create Policy (Customer)
 router.post(
@@ -64,5 +64,11 @@ router.put(
 );
 
 router.get("/policies", authMiddleware("customer"), getCustomerPolicies);
+
+router.get(
+  "/notifications",
+  authMiddleware(["customer"]),
+  getCustomerNotifications
+);
 
 module.exports = router;

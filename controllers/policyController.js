@@ -5,6 +5,9 @@ const path = require("path");
 const PDFDocument = require("pdfkit");
 const compareImages = require("../services/imageComparisonService");
 const CustomerModel = require("../models/customerModel");
+const { generateInsuranceCertificate } = require("../services/certificateGenerators");
+const NotificationModel = require("../models/NotificationModel");
+
 const insuranceAmounts = {
   home: 500000,
   car: 300000,
@@ -175,7 +178,7 @@ const claimPolicy = async (req, res) => {
     const { policyId } = req.params;
     const { damageDescription } = req.body;
     // const damageImage = req.file ? req.file.path : null;
-    const damageImage = req.file ? `uploads/${req.file.filename}` : null; 
+    const damageImage = req.file ? `uploads/${req.file.filename}` : null;
 
     if (!damageDescription || !damageImage) {
       return res
@@ -427,32 +430,114 @@ const getAllClaimPolicy = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+// const approveRejectClaimByGovernment = async (req, res) => {
+//   try {
+//     const { claimId } = req.params;
+//     const { action } = req.body; // "approve" or "reject"
+
+//     // Validate the claimId format
+//     if (!mongoose.isValidObjectId(claimId)) {
+//       return res.status(400).json({ message: "Invalid claim ID format." });
+//     }
+
+//     // Fetch the policy using the claimId
+//     const policy = await PolicyModel.findOne({
+//       "claimDetails.claimId": claimId,
+//     }).populate("customerId", "name email phoneNumber");
+//     if (!policy) {
+//       return res.status(404).json({ message: "Policy not found." });
+//     }
+
+//     // Ensure the policy status is "waiting for government"
+//     if (policy.policyStatus !== "waiting for government") {
+//       return res
+//         .status(400)
+//         .json({ message: "Claim must be reviewed by a surveyor first." });
+//     }
+
+//     // Retrieve the damage percentage from the surveyor's report
+//     let damagePercentage = policy.surveyorReport?.damagePercentage;
+//     if (!damagePercentage) {
+//       return res
+//         .status(400)
+//         .json({ message: "Damage percentage not found in surveyor report." });
+//     }
+
+//     // Calculate the payout amount based on the damage percentage
+//     let payoutAmount = (damagePercentage / 100) * policy.insuranceAmount;
+
+//     // Round the payoutAmount to the nearest whole number
+//     payoutAmount = Math.round(payoutAmount); // <-- Round the payoutAmount to a whole number
+
+//     // Update the claim status and policy status based on the action
+//     policy.claimDetails.status = action === "approve" ? "approved" : "rejected";
+//     policy.claimDetails.payoutAmount = action === "approve" ? payoutAmount : 0;
+//     policy.policyStatus = action === "approve" ? "fulfilled" : "rejected";
+//     policy.payoutAmount = action === "approve" ? payoutAmount : 0;
+
+//     // Save the updated policy
+//     await policy.save();
+
+//     // Format the date for response
+//     const createdAtDate = policy.createdAt.toISOString().split("T")[0];
+
+//     // Return the updated policy and claim information
+//     return res.status(200).json({
+//       message: `Claim ${action}d successfully.`,
+//       customer: {
+//         name: policy.customerId.name,
+//         email: policy.customerId.email,
+//         phoneNumber: policy.customerId.phoneNumber,
+//       },
+//       policy: {
+//         policyId: policy.policyId,
+//         type: policy.type,
+//         address: policy.address,
+//         city: policy.city,
+//         insuranceAmount: policy.insuranceAmount,
+//         policyStatus: policy.policyStatus,
+//         createdAt: createdAtDate,
+//         payoutAmount: policy.payoutAmount, // The payoutAmount will now be rounded
+//       },
+//       claimDetails: {
+//         claimId: policy.claimDetails.claimId,
+//         damageDescription: policy.claimDetails.damageDescription,
+//         damageImage: policy.claimDetails.damageImage,
+//         status: policy.claimDetails.status,
+//         payoutAmount: policy.claimDetails.payoutAmount,
+//       },
+//     });
+//   } catch (err) {
+//     console.error("Error in approveRejectClaimByGovernment:", err.message);
+//     return res
+//       .status(500)
+//       .json({ message: "Server error, please try again later." });
+//   }
+// };
+
 const approveRejectClaimByGovernment = async (req, res) => {
   try {
     const { claimId } = req.params;
-    const { action } = req.body; // "approve" or "reject"
+    const { action } = req.body;
 
-    // Validate the claimId format
     if (!mongoose.isValidObjectId(claimId)) {
       return res.status(400).json({ message: "Invalid claim ID format." });
     }
 
-    // Fetch the policy using the claimId
     const policy = await PolicyModel.findOne({
       "claimDetails.claimId": claimId,
     }).populate("customerId", "name email phoneNumber");
+
     if (!policy) {
       return res.status(404).json({ message: "Policy not found." });
     }
 
-    // Ensure the policy status is "waiting for government"
     if (policy.policyStatus !== "waiting for government") {
       return res
         .status(400)
         .json({ message: "Claim must be reviewed by a surveyor first." });
     }
 
-    // Retrieve the damage percentage from the surveyor's report
     let damagePercentage = policy.surveyorReport?.damagePercentage;
     if (!damagePercentage) {
       return res
@@ -460,27 +545,35 @@ const approveRejectClaimByGovernment = async (req, res) => {
         .json({ message: "Damage percentage not found in surveyor report." });
     }
 
-    // Calculate the payout amount based on the damage percentage
-    let payoutAmount = (damagePercentage / 100) * policy.insuranceAmount;
+    let payoutAmount = Math.round(
+      (damagePercentage / 100) * policy.insuranceAmount
+    );
 
-    // Round the payoutAmount to the nearest whole number
-    payoutAmount = Math.round(payoutAmount); // <-- Round the payoutAmount to a whole number
-
-    // Update the claim status and policy status based on the action
     policy.claimDetails.status = action === "approve" ? "approved" : "rejected";
     policy.claimDetails.payoutAmount = action === "approve" ? payoutAmount : 0;
     policy.policyStatus = action === "approve" ? "fulfilled" : "rejected";
     policy.payoutAmount = action === "approve" ? payoutAmount : 0;
 
-    // Save the updated policy
     await policy.save();
 
-    // Format the date for response
-    const createdAtDate = policy.createdAt.toISOString().split("T")[0];
+    let certificatePath = "";
+    if (action === "approve") {
+      // Generate Insurance Certificate and get relative path
+      certificatePath = await generateInsuranceCertificate(
+        policy,
+        policy.customerId
+      );
 
-    // Return the updated policy and claim information
+      // Send Notification to Customer
+      await NotificationModel.create({
+        customerId: policy.customerId._id,
+        message: `Your insurance claim for ${policy.type} has been approved. Certificate available for download.`,
+        certificatePath,
+      });
+    }
+
     return res.status(200).json({
-      message: `Claim ${action}d successfully.`,
+      message: `Claim ${action}d successfully. Certificate sent to ${policy.customerId.name}.`,
       customer: {
         name: policy.customerId.name,
         email: policy.customerId.email,
@@ -493,8 +586,7 @@ const approveRejectClaimByGovernment = async (req, res) => {
         city: policy.city,
         insuranceAmount: policy.insuranceAmount,
         policyStatus: policy.policyStatus,
-        createdAt: createdAtDate,
-        payoutAmount: policy.payoutAmount, // The payoutAmount will now be rounded
+        payoutAmount: policy.payoutAmount,
       },
       claimDetails: {
         claimId: policy.claimDetails.claimId,
@@ -503,9 +595,27 @@ const approveRejectClaimByGovernment = async (req, res) => {
         status: policy.claimDetails.status,
         payoutAmount: policy.claimDetails.payoutAmount,
       },
+      certificatePath: action === "approve" ? certificatePath : null, // Provide relative certificate link
     });
   } catch (err) {
     console.error("Error in approveRejectClaimByGovernment:", err.message);
+    return res
+      .status(500)
+      .json({ message: "Server error, please try again later." });
+  }
+};
+
+const getCustomerNotifications = async (req, res) => {
+  try {
+    const customerId = req.user.id; // Assuming auth middleware attaches `user` object
+
+    const notifications = await NotificationModel.find({ customerId }).sort({
+      createdAt: -1,
+    });
+
+    return res.status(200).json({ notifications });
+  } catch (error) {
+    console.error("Error fetching notifications:", error.message);
     return res
       .status(500)
       .json({ message: "Server error, please try again later." });
@@ -523,4 +633,5 @@ module.exports = {
   reviewClaimBySurveyor,
   getCustomerPolicies,
   getAllClaimPolicy,
+  getCustomerNotifications,
 };
