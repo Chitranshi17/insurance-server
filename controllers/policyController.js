@@ -5,7 +5,9 @@ const path = require("path");
 const PDFDocument = require("pdfkit");
 const compareImages = require("../services/imageComparisonService");
 const CustomerModel = require("../models/customerModel");
-const { generateInsuranceCertificate } = require("../services/certificateGenerators");
+const {
+  generateInsuranceCertificate,
+} = require("../services/certificateGenerators");
 const NotificationModel = require("../models/NotificationModel");
 
 const insuranceAmounts = {
@@ -37,25 +39,32 @@ const getCustomerPolicies = async (req, res) => {
 };
 const getAllPolicies = async (req, res) => {
   try {
+    let policies = [];
+
     // Government can access all policies
     if (req.user.role === "government") {
-      const policies = await PolicyModel.find();
-      return res.status(200).json({
-        message: "Policies fetched successfully",
-        policies,
-      });
+      policies = await PolicyModel.find();
+    }
+    // Surveyor or Customer can view their specific policies
+    else if (req.user.role === "survey" || req.user.role === "customer") {
+      policies = await PolicyModel.find({ userId: req.user.id });
+    } else {
+      return res.status(403).json({ message: "Access denied" });
     }
 
-    // Surveyor or Customer can view their specific policies (if needed)
-    if (req.user.role === "survey" || req.user.role === "customer") {
-      const policies = await PolicyModel.find({ userId: req.user.id });
-      return res.status(200).json({
-        message: "Policies fetched successfully",
-        policies,
-      });
-    }
+    // Separate policies into two arrays
+    const waitingForGovernmentPolicies = policies.filter(
+      (policy) => policy.policyStatus === "waiting for government"
+    );
+    const otherPolicies = policies.filter(
+      (policy) => policy.policyStatus !== "waiting for government"
+    );
 
-    return res.status(403).json({ message: "Access denied" });
+    return res.status(200).json({
+      message: "Policies fetched successfully",
+      waitingForGovernmentPolicies,
+      otherPolicies,
+    });
   } catch (err) {
     console.error("Error in getAllPolicies:", err);
     return res
@@ -66,7 +75,6 @@ const getAllPolicies = async (req, res) => {
 const createPolicy = async (req, res) => {
   try {
     const { phoneNumber, type, address, city, customerId } = req.body;
-    // const beforeDamageImage = req.file ? req.file.path : null;
     const beforeDamageImage = req.file ? `uploads/${req.file.filename}` : null;
 
     if (
@@ -430,91 +438,6 @@ const getAllClaimPolicy = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
-// const approveRejectClaimByGovernment = async (req, res) => {
-//   try {
-//     const { claimId } = req.params;
-//     const { action } = req.body; // "approve" or "reject"
-
-//     // Validate the claimId format
-//     if (!mongoose.isValidObjectId(claimId)) {
-//       return res.status(400).json({ message: "Invalid claim ID format." });
-//     }
-
-//     // Fetch the policy using the claimId
-//     const policy = await PolicyModel.findOne({
-//       "claimDetails.claimId": claimId,
-//     }).populate("customerId", "name email phoneNumber");
-//     if (!policy) {
-//       return res.status(404).json({ message: "Policy not found." });
-//     }
-
-//     // Ensure the policy status is "waiting for government"
-//     if (policy.policyStatus !== "waiting for government") {
-//       return res
-//         .status(400)
-//         .json({ message: "Claim must be reviewed by a surveyor first." });
-//     }
-
-//     // Retrieve the damage percentage from the surveyor's report
-//     let damagePercentage = policy.surveyorReport?.damagePercentage;
-//     if (!damagePercentage) {
-//       return res
-//         .status(400)
-//         .json({ message: "Damage percentage not found in surveyor report." });
-//     }
-
-//     // Calculate the payout amount based on the damage percentage
-//     let payoutAmount = (damagePercentage / 100) * policy.insuranceAmount;
-
-//     // Round the payoutAmount to the nearest whole number
-//     payoutAmount = Math.round(payoutAmount); // <-- Round the payoutAmount to a whole number
-
-//     // Update the claim status and policy status based on the action
-//     policy.claimDetails.status = action === "approve" ? "approved" : "rejected";
-//     policy.claimDetails.payoutAmount = action === "approve" ? payoutAmount : 0;
-//     policy.policyStatus = action === "approve" ? "fulfilled" : "rejected";
-//     policy.payoutAmount = action === "approve" ? payoutAmount : 0;
-
-//     // Save the updated policy
-//     await policy.save();
-
-//     // Format the date for response
-//     const createdAtDate = policy.createdAt.toISOString().split("T")[0];
-
-//     // Return the updated policy and claim information
-//     return res.status(200).json({
-//       message: `Claim ${action}d successfully.`,
-//       customer: {
-//         name: policy.customerId.name,
-//         email: policy.customerId.email,
-//         phoneNumber: policy.customerId.phoneNumber,
-//       },
-//       policy: {
-//         policyId: policy.policyId,
-//         type: policy.type,
-//         address: policy.address,
-//         city: policy.city,
-//         insuranceAmount: policy.insuranceAmount,
-//         policyStatus: policy.policyStatus,
-//         createdAt: createdAtDate,
-//         payoutAmount: policy.payoutAmount, // The payoutAmount will now be rounded
-//       },
-//       claimDetails: {
-//         claimId: policy.claimDetails.claimId,
-//         damageDescription: policy.claimDetails.damageDescription,
-//         damageImage: policy.claimDetails.damageImage,
-//         status: policy.claimDetails.status,
-//         payoutAmount: policy.claimDetails.payoutAmount,
-//       },
-//     });
-//   } catch (err) {
-//     console.error("Error in approveRejectClaimByGovernment:", err.message);
-//     return res
-//       .status(500)
-//       .json({ message: "Server error, please try again later." });
-//   }
-// };
-
 const approveRejectClaimByGovernment = async (req, res) => {
   try {
     const { claimId } = req.params;
