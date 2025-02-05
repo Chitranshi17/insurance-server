@@ -490,6 +490,10 @@ const approveRejectClaimByGovernment = async (req, res) => {
       // Send Notification to Customer
       await NotificationModel.create({
         customerId: policy.customerId._id,
+        policyId: policy._id,
+        claimId: claimId,
+        policyStatus: policy.policyStatus,
+        payoutAmount: policy.payoutAmount,
         message: `Your insurance claim for ${policy.type} has been approved. Certificate available for download.`,
         certificatePath,
       });
@@ -498,6 +502,7 @@ const approveRejectClaimByGovernment = async (req, res) => {
     return res.status(200).json({
       message: `Claim ${action}d successfully. Certificate sent to ${policy.customerId.name}.`,
       customer: {
+        customerId: policy.customerId._id,
         name: policy.customerId.name,
         email: policy.customerId.email,
         phoneNumber: policy.customerId.phoneNumber,
